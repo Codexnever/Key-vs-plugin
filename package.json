@@ -16,6 +16,10 @@
       {
         "command": "keyguardian.scan",
         "title": "Scan for API Keys"
+      },
+      {
+        "command": "keyguardian.replaceAll",
+        "title": "Replace All API Keys with Tokens"
       }
     ]
   },

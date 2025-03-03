@@ -6,3 +6,13 @@ export function isApiKey(text: string): boolean {
     
     return patterns.some(pattern => pattern.test(text));
 }
+
+export function detectService(apiKey: string): string {
+    if (apiKey.startsWith('sk_live_')) {
+        return 'stripe';
+    } else if (apiKey.startsWith('AKIA')) {
+        return 'aws';
+    } else {
+        return 'unknown';
+    }
+}
