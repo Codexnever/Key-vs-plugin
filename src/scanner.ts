@@ -16,30 +16,41 @@ export function scanForApiKeys(document: vscode.TextDocument) {
         );
         
         const serviceName = detectService(detectedKey);
-        const replacement = `KeyGuardian.getToken('${serviceName}')`;
+        const replacement = `KeyGuardian.getToken('${detectService(detectedKey)}')`;
         
         replacements.push({ range, replacement });
         
-        // Show warning with replacement suggestion
-        const replaceAction = 'Replace with token';
-        vscode.window.showWarningMessage(
-            `⚠️ API Key detected for ${serviceName}`, 
-            replaceAction
-        ).then(selection => {
-            if (selection === replaceAction) {
-                performReplacements(document, [{ range, replacement }]);
-            }
-        });
-        
         // Highlight the API key
         highlightApiKey(range);
+        
+        // Show warning with replacement action buttons
+        vscode.window.showWarningMessage(
+            `⚠️ API Key detected for ${serviceName}`, 
+            'Replace with token', 
+            'Ignore'
+        ).then(selection => {
+            if (selection === 'Replace with token') {
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    editor.edit(editBuilder => {
+                        editBuilder.replace(range, replacement);
+                    }).then(success => {
+                        if (success) {
+                            vscode.window.showInformationMessage(`API key replaced with KeyGuardian token`);
+                        }
+                    });
+                }
+            }
+        });
     }
     
     return replacements;
 }
 
+
 export function replaceAllApiKeys(document: vscode.TextDocument) {
     const replacements = scanForApiKeys(document);
+    console.log(replacements)
     if (replacements.length > 0) {
         performReplacements(document, replacements);
         vscode.window.showInformationMessage(`${replacements.length} API keys replaced with KeyGuardian tokens`);
@@ -71,6 +82,12 @@ function highlightApiKey(range: vscode.Range) {
 
     const editor = vscode.window.activeTextEditor;
     if (editor) {
+        // Make sure we're only decorating exactly the API key and nothing else
         editor.setDecorations(decorationType, [range]);
+        
+        // Store the decoration to be able to remove it later if needed
+        setTimeout(() => {
+            editor.setDecorations(decorationType, []);
+        }, 10000); // Remove decoration after 10 seconds
     }
 }
