@@ -16,7 +16,7 @@ export function scanForApiKeys(document: vscode.TextDocument) {
         );
         
         const serviceName = detectService(detectedKey);
-        const replacement = `KeyGuardian.getToken('${detectService(detectedKey)}')`;
+        const replacement = `KeyGuardian.getToken('${serviceName}')`;
         
         replacements.push({ range, replacement });
         
@@ -47,10 +47,9 @@ export function scanForApiKeys(document: vscode.TextDocument) {
     return replacements;
 }
 
-
 export function replaceAllApiKeys(document: vscode.TextDocument) {
     const replacements = scanForApiKeys(document);
-    console.log(replacements)
+    
     if (replacements.length > 0) {
         performReplacements(document, replacements);
         vscode.window.showInformationMessage(`${replacements.length} API keys replaced with KeyGuardian tokens`);
@@ -62,7 +61,10 @@ export function replaceAllApiKeys(document: vscode.TextDocument) {
 function performReplacements(document: vscode.TextDocument, replacements: { range: vscode.Range; replacement: string }[]) {
     const edit = new vscode.WorkspaceEdit();
     
-    replacements.forEach(({ range, replacement }) => {
+    // Sort replacements in reverse order to avoid range shifting issues
+    const sortedReplacements = [...replacements].sort((a, b) => b.range.start.compareTo(a.range.start));
+    
+    sortedReplacements.forEach(({ range, replacement }) => {
         edit.replace(document.uri, range, replacement);
     });
     
@@ -71,7 +73,7 @@ function performReplacements(document: vscode.TextDocument, replacements: { rang
 
 function highlightApiKey(range: vscode.Range) {
     const decorationType = vscode.window.createTextEditorDecorationType({
-        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+        backgroundColor: 'rgba(255, 0, 0, 0.47)',
         border: '1px solid red',
         borderRadius: '3px',
         after: {
@@ -85,9 +87,9 @@ function highlightApiKey(range: vscode.Range) {
         // Make sure we're only decorating exactly the API key and nothing else
         editor.setDecorations(decorationType, [range]);
         
-        // Store the decoration to be able to remove it later if needed
+        // Remove decoration after 10 seconds
         setTimeout(() => {
             editor.setDecorations(decorationType, []);
-        }, 10000); // Remove decoration after 10 seconds
+        }, 10000);
     }
 }

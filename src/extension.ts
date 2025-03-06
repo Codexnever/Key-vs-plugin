@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { scanForApiKeys, replaceAllApiKeys } from './scanner';
-
 export function activate(context: vscode.ExtensionContext) {
     console.log('KeyGuardian extension is now active!');
 
