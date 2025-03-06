@@ -15,17 +15,25 @@
 ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "keyguardian.scan",
-        "title": "Scan for API Keys"
-      },
-      {
-        "command": "keyguardian.replaceAll",
-        "title": "Replace All API Keys with Tokens"
-      }
-    ]
-  },
+  "commands": [
+    {
+      "command": "keyguardian.scan",
+      "title": "Scan for API Keys"
+    },
+    {
+      "command": "keyguardian.replaceAll",
+      "title": "Replace All API Keys with Tokens"
+    },
+    {
+      "command": "keyguardian.replaceKey",
+      "title": "Replace API Key with Token"
+    },
+    {
+      "command": "keyguardian.replaceHovered",
+      "title": "Replace Hovered API Key with Token"
+    }
+  ]
+},
   
     "scripts": {
       "vscode:prepublish": "npm run package",

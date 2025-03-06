@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register the hover provider
     registerHoverProvider(context);
     
-    // Register the replace key command (called from hover)
+    // Register the replace key commands
     registerReplaceKeyCommand(context);
 
     // Auto-scan on document changes (using a debounced approach to improve performance)

@@ -100,6 +100,36 @@ function performReplacements(document: vscode.TextDocument, replacements: { rang
     vscode.workspace.applyEdit(edit);
 }
 
+// Function to replace a single API key at a specific position
+export function replaceApiKeyAtPosition(document: vscode.TextDocument, position: vscode.Position) {
+    const docKey = document.uri.toString();
+    const ranges = detectedApiKeys.get(docKey) || [];
+    
+    // Find the range containing the position
+    const foundRange = ranges.find(range => range.contains(position));
+    
+    if (foundRange) {
+        const key = document.getText(foundRange);
+        const serviceName = detectService(key);
+        const replacement = `KeyGuardian.getToken('${serviceName}')`;
+        
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, foundRange, replacement);
+        
+        vscode.workspace.applyEdit(edit).then(success => {
+            if (success) {
+                vscode.window.showInformationMessage(`API key replaced with KeyGuardian token`);
+            } else {
+                vscode.window.showErrorMessage(`Failed to replace API key`);
+            }
+        });
+        
+        return true;
+    }
+    
+    return false;
+}
+
 export function registerHoverProvider(context: vscode.ExtensionContext) {
     const hoverProvider = vscode.languages.registerHoverProvider('*', {
         provideHover(document, position) {
@@ -117,13 +147,16 @@ export function registerHoverProvider(context: vscode.ExtensionContext) {
                 content.supportHtml = true;
                 
                 content.appendMarkdown(`**API Key Detected!**\n\nThis appears to be a ${serviceName} API key.\n\n`);
-                content.appendMarkdown(`[Replace with Token](command:keyguardian.replaceKey?${encodeURIComponent(JSON.stringify({
-                    uri: document.uri.toString(),
-                    range: {
-                        start: { line: foundRange.start.line, character: foundRange.start.character },
-                        end: { line: foundRange.end.line, character: foundRange.end.character }
-                    }
-                }))})`);
+                
+                // Create a command URI with a stringified JSON payload
+                const commandArgs = {
+                    documentUri: document.uri.toString(),
+                    line: foundRange.start.line,
+                    character: foundRange.start.character
+                };
+                
+                // Use a simpler command URI structure
+                content.appendMarkdown(`[Replace with Token](command:keyguardian.replaceKey?${encodeURIComponent(JSON.stringify(commandArgs))})`);
                 
                 return new vscode.Hover(content, foundRange);
             }
@@ -137,26 +170,39 @@ export function registerHoverProvider(context: vscode.ExtensionContext) {
 
 export function registerReplaceKeyCommand(context: vscode.ExtensionContext) {
     const command = vscode.commands.registerCommand('keyguardian.replaceKey', (args) => {
-        const { uri, range } = args;
-        const document = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === uri);
+        console.log('Replace key command triggered with args:', args);
         
-        if (document) {
-            const vscodeRange = new vscode.Range(
-                new vscode.Position(range.start.line, range.start.character),
-                new vscode.Position(range.end.line, range.end.character)
-            );
+        try {
+            // Parse the JSON string if it's a string
+            const params = typeof args === 'string' ? JSON.parse(args) : args;
             
-            const key = document.getText(vscodeRange);
-            const serviceName = detectService(key);
-            const replacement = `KeyGuardian.getToken('${serviceName}')`;
+            // Extract parameters from the arguments
+            const { documentUri, line, character } = params;
             
-            const edit = new vscode.WorkspaceEdit();
-            edit.replace(vscode.Uri.parse(uri), vscodeRange, replacement);
-            vscode.workspace.applyEdit(edit).then(success => {
-                if (success) {
-                    vscode.window.showInformationMessage(`API key replaced with KeyGuardian token`);
+            // Find the document
+            const documentUriObj = vscode.Uri.parse(documentUri);
+            const documents = vscode.workspace.textDocuments;
+            const document = documents.find(doc => doc.uri.toString() === documentUri);
+            
+            if (document) {
+                // Create a position object from the line and character
+                const position = new vscode.Position(line, character);
+                
+                // Replace the API key at the position
+                const replaced = replaceApiKeyAtPosition(document, position);
+                
+                if (!replaced) {
+                    vscode.window.showErrorMessage('Failed to locate API key at the specified position');
+                    console.error('Failed to locate API key at position:', position);
                 }
-            });
+            } else {
+                vscode.window.showErrorMessage(`Document not found: ${documentUri}`);
+                console.error('Document not found:', documentUri);
+                console.log('Available documents:', documents.map(d => d.uri.toString()));
+            }
+        } catch (error) {
+            console.error('Error in replaceKey command:', error);
+            vscode.window.showErrorMessage(`Error replacing API key: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
     
