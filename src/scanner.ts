@@ -4,7 +4,6 @@ import { isApiKey, detectService } from './utils';
 // Store detected API keys for hover functionality
 const detectedApiKeys = new Map<string, vscode.Range[]>();
 
-// Create a decoration type for API keys
 const apiKeyDecorationType = vscode.window.createTextEditorDecorationType({
     backgroundColor: 'rgba(255, 0, 0, 0.3)',
     border: '1px solid red',
@@ -136,7 +135,6 @@ export function registerHoverProvider(context: vscode.ExtensionContext) {
             const docKey = document.uri.toString();
             const ranges = detectedApiKeys.get(docKey) || [];
             
-            // Check if position is in any of the detected API key ranges
             const foundRange = ranges.find(range => range.contains(position));
             if (foundRange) {
                 const key = document.getText(foundRange);
@@ -155,7 +153,6 @@ export function registerHoverProvider(context: vscode.ExtensionContext) {
                     character: foundRange.start.character
                 };
                 
-                // Use a simpler command URI structure
                 content.appendMarkdown(`[Replace with Token](command:keyguardian.replaceKey?${encodeURIComponent(JSON.stringify(commandArgs))})`);
                 
                 return new vscode.Hover(content, foundRange);
@@ -173,19 +170,41 @@ export function registerReplaceKeyCommand(context: vscode.ExtensionContext) {
         console.log('Replace key command triggered with args:', args);
         
         try {
-            // Parse the JSON string if it's a string
             const params = typeof args === 'string' ? JSON.parse(args) : args;
             
-            // Extract parameters from the arguments
             const { documentUri, line, character } = params;
             
-            // Find the document
+            // Create a proper vscode.Uri from the string URI
             const documentUriObj = vscode.Uri.parse(documentUri);
+            
+            // Get all open documents
             const documents = vscode.workspace.textDocuments;
-            const document = documents.find(doc => doc.uri.toString() === documentUri);
+            console.log('Available documents:', documents.map(d => d.uri.toString()));
+            
+            let document = documents.find(doc => doc.uri.toString() === documentUri);
+            
+            // If not found, try with a normalized path comparison
+            if (!document) {
+                document = documents.find(doc => {
+                    // Normalize both URIs for comparison
+                    const normalizedDocUri = decodeURIComponent(doc.uri.toString().toLowerCase());
+                    const normalizedSearchUri = decodeURIComponent(documentUri.toLowerCase());
+                    return normalizedDocUri === normalizedSearchUri;
+                });
+            }
+            
+            if (!document) {
+                const searchUriParts = decodeURIComponent(documentUri).split('/');
+                const searchFileName = searchUriParts[searchUriParts.length - 1];
+                
+                document = documents.find(doc => {
+                    const docUriParts = decodeURIComponent(doc.uri.toString()).split('/');
+                    const docFileName = docUriParts[docUriParts.length - 1];
+                    return docFileName === searchFileName;
+                });
+            }
             
             if (document) {
-                // Create a position object from the line and character
                 const position = new vscode.Position(line, character);
                 
                 // Replace the API key at the position
@@ -198,6 +217,7 @@ export function registerReplaceKeyCommand(context: vscode.ExtensionContext) {
             } else {
                 vscode.window.showErrorMessage(`Document not found: ${documentUri}`);
                 console.error('Document not found:', documentUri);
+                console.log('Looking for:', documentUri);
                 console.log('Available documents:', documents.map(d => d.uri.toString()));
             }
         } catch (error) {

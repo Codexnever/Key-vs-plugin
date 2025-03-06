@@ -38,10 +38,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
         timeout = setTimeout(() => {
             scanForApiKeys(event.document);
-        }, 500); // Debounce for 500ms
+        }, 500); 
     });
     
-    // Also scan on open documents
     let openSubscription = vscode.workspace.onDidOpenTextDocument(document => {
         scanForApiKeys(document);
     });
